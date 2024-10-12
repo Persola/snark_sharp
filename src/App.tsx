@@ -32,7 +32,7 @@ function App() {
   };
 
   return (
-    <div>
+    <div data-component="App">
       {/* Button changes appearance based on the toggle state */}
       <button onClick={handleToggle} style={isToggled ? styles.toggled : styles.untoggled}>
         {isToggled ? "UPDATE UI" : "RESTORE UI"}
