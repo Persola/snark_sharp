@@ -16,6 +16,11 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 import { WavRecorder, WavStreamPlayer } from '../lib/wavtools/index.js';
+
+// import logDots from '../lib/dots/logDots.js';
+import dotTool from '../lib/dots/dotTool.js';
+import displayDots from '../lib/dots/displayDots.js';
+
 import { instructions } from '../utils/conversation_config.js';
 import { WavRenderer } from '../utils/wav_renderer';
 
@@ -492,6 +497,16 @@ export function ConsolePage() {
       setItems(items);
     });
 
+    // client.on('conversation.updated', async ({ item, delta }: any) => {
+    //   logDots(item, delta);
+    // });
+
+    console.log('eEEEEeee--ee'.repeat(99))
+    client.addTool(
+      dotTool,
+      displayDots,
+    );
+
     setItems(client.conversation.getItems());
 
     return () => {
@@ -607,9 +622,7 @@ export function ConsolePage() {
                   <div className="conversation-item" key={conversationItem.id}>
                     <div className={`speaker ${conversationItem.role || ''}`}>
                       <div>
-                        {(
-                          conversationItem.role || conversationItem.type
-                        ).replaceAll('_', ' ')}
+                        {`${conversationItem.role} ::: ${conversationItem.type}`}
                       </div>
                       <div
                         className="close"
