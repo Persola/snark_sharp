@@ -1,45 +1,36 @@
 import { ConsolePage } from './pages/ConsolePage';
-import React, { useState } from "react"; // TGB
+import { useState } from "react";
 import './App.scss';
 
-// Define styles for the button when toggled or untoggled
 const styles = {
   toggled: {
-    backgroundColor: "green",
+    backgroundColor: "black",
     color: "white",
     padding: "10px 20px",
     border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
   },
   untoggled: {
-    backgroundColor: "gray",
+    backgroundColor: "black",
     color: "white",
     padding: "10px 20px",
     border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
   },
 };
 
 function App() {
-  // Define the state that will control the toggle state
-  const [isToggled, setIsToggled] = useState(false);
+  const [displayConsole, setDisplayConsole] = useState(false);
 
-  // Function to toggle the state
-  const handleToggle = () => {
-    setIsToggled(!isToggled);
+  const toggleConsole = () => {
+    setDisplayConsole(!displayConsole);
   };
 
   return (
     <div>
-      {/* Button changes appearance based on the toggle state */}
-      <button onClick={handleToggle} style={isToggled ? styles.toggled : styles.untoggled}>
-        {isToggled ? "UPDATE UI" : "RESTORE UI"}
+      <button onClick={toggleConsole} style={displayConsole ? styles.toggled : styles.untoggled}>
+        {displayConsole ? "UPDATE UI" : "RESTORE UI"}
       </button>
 
-      {/* Conditionally render the component based on the toggle state */}
-      {isToggled && <ConsolePage />}
+      {displayConsole && <ConsolePage />}
     </div>
   );
 }
