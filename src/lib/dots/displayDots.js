@@ -1,5 +1,5 @@
-const displayDots = async ({ dotCount }) => {
-  console.log(`WOULD DISPLAY: ${dotCount} (${typeof dotCount})`)
+const displayDots = async (setDotCount, howManyDots) => {
+  setDotCount(howManyDots);
 };
 
 export default displayDots;

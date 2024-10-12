@@ -5,12 +5,12 @@ const dotTool = {
   parameters: {
     type: 'object',
     properties: {
-      dotCount: {
+      howManyDots: {
         type: 'number',
         description: 'How many dots should be displayed to the user',
       },
     },
-    required: ['dotCount'],
+    required: ['howManyDots'],
   },
 }
 
