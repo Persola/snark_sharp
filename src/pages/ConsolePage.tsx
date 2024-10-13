@@ -156,6 +156,7 @@ export function ConsolePage() {
 
   const [displayConsole, setDisplayConsole] = useState(false);
   const [dotCount, setDotCount] = useState<number>(1);
+  const [dotColor, setDotColor] = useState<string>('#000000');
 
   const toggleConsole = () => {
     setDisplayConsole(!displayConsole);
@@ -536,10 +537,11 @@ export function ConsolePage() {
 
     client.addTool(
       dotTool,
-      (args: {howManyDots: number}) => {
-        const { howManyDots } = args;
+      (args: {howManyDots: number, dotColor: string}) => {
+        const { howManyDots, dotColor } = args;
 
-        setDotCount(howManyDots)
+        setDotCount(howManyDots);
+        setDotColor(dotColor);
       },
     );
 
@@ -596,7 +598,7 @@ export function ConsolePage() {
               {isRecording ? "let go to stop" : 'push to talk'}
             </button>)
           } */}
-          <Dots dotCount={dotCount}/>
+          <Dots dotCount={dotCount} dotColor={dotColor}/>
         </div>
       ) : (
         <div data-component="ConsolePage">

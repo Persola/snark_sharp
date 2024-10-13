@@ -7,10 +7,14 @@ const dotTool = {
     properties: {
       howManyDots: {
         type: 'number',
-        description: 'How many dots should be displayed to the user',
+        description: 'The number of dots to display',
+      },
+      dotColor: {
+        type: 'string',
+        description: 'The color of dots to display. It should be a hex string as used in CSS. For example, black is "#000000" and white is "#ffffff".',
       },
     },
-    required: ['howManyDots'],
+    required: ['howManyDots', 'dotColor'],
   },
 }
 
