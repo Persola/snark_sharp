@@ -22,8 +22,8 @@ const Dots = (props: { dotCount: number }) => {
         backgroundColor: 'lightgray',
         padding: '10px'
       }}>
-        {Array.from({ length: dotCount }).map((_, __) => (
-          <div style={{
+        {Array.from({ length: dotCount }).map((_, dotIndex) => (
+          <div key={dotIndex} style={{
             backgroundColor: 'black',
             borderRadius: '50%',
             width: '100%',
