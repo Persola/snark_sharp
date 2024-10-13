@@ -16,6 +16,11 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 import { WavRecorder, WavStreamPlayer } from '../lib/wavtools/index.js';
+
+// import logDots from '../lib/dots/logDots.js';
+import dotTool from '../lib/dots/dotTool.js';
+import displayDots from '../lib/dots/displayDots.js';
+
 import { instructions } from '../utils/conversation_config.js';
 import { WavRenderer } from '../utils/wav_renderer';
 
@@ -23,6 +28,8 @@ import { X, Edit, Zap, ArrowUp, ArrowDown } from 'react-feather';
 import { Button } from '../components/button/Button';
 import { Toggle } from '../components/toggle/Toggle';
 import { Map } from '../components/Map';
+
+import Dots from '../components/Dots';
 
 import './ConsolePage.scss';
 import { isJsxOpeningLikeElement } from 'typescript';
@@ -54,6 +61,28 @@ interface RealtimeEvent {
   event: { [key: string]: any };
 }
 
+const cbBaseStyles = {
+  // position: 'absolute',
+  // bottom: '0',
+  // right: '0',
+  padding: '10px 20px',
+  width: '120px',
+  margin: '6px'
+};
+
+const consoleButtonStyles = {
+  off: Object.assign({
+    color: 'white',
+    backgroundColor: 'black',
+    border: '4px solid black',
+  }, cbBaseStyles),
+  on: Object.assign({
+    color: 'black',
+    backgroundColor: 'white',
+    border: '4px solid black',
+  }, cbBaseStyles)
+};
+
 export function ConsolePage() {
   /**
    * Ask user for API Key
@@ -77,9 +106,9 @@ export function ConsolePage() {
   const wavRecorderRef = useRef<WavRecorder>(
     new WavRecorder({ sampleRate: 24000 })
   );
-  const wavStreamPlayerRef = useRef<WavStreamPlayer>(
-    new WavStreamPlayer({ sampleRate: 24000 })
-  );
+  // const wavStreamPlayerRef = useRef<WavStreamPlayer>(
+  //   new WavStreamPlayer({ sampleRate: 24000 })
+  // );
   const clientRef = useRef<RealtimeClient>(
     new RealtimeClient(
       LOCAL_RELAY_SERVER_URL
@@ -125,6 +154,14 @@ export function ConsolePage() {
   });
   const [marker, setMarker] = useState<Coordinates | null>(null);
 
+  const [displayConsole, setDisplayConsole] = useState(false);
+  const [dotCount, setDotCount] = useState<number>(1);
+  const [dotColor, setDotColor] = useState<string>('#000000');
+
+  const toggleConsole = () => {
+    setDisplayConsole(!displayConsole);
+  };
+
   /**
    * Utility for formatting the timing of logs
    */
@@ -165,7 +202,7 @@ export function ConsolePage() {
   const connectConversation = useCallback(async () => {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
-    const wavStreamPlayer = wavStreamPlayerRef.current;
+    // const wavStreamPlayer = wavStreamPlayerRef.current;
 
     // Set state variables
     startTimeRef.current = new Date().toISOString();
@@ -177,7 +214,7 @@ export function ConsolePage() {
     await wavRecorder.begin();
 
     // Connect to audio output
-    await wavStreamPlayer.connect();
+    // await wavStreamPlayer.connect();
 
     // Connect to realtime API
     await client.connect();
@@ -214,8 +251,8 @@ export function ConsolePage() {
     const wavRecorder = wavRecorderRef.current;
     await wavRecorder.end();
 
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    await wavStreamPlayer.interrupt();
+    // const wavStreamPlayer = wavStreamPlayerRef.current;
+    // await wavStreamPlayer.interrupt();
   }, []);
 
   const deleteConversationItem = useCallback(async (id: string) => {
@@ -231,12 +268,12 @@ export function ConsolePage() {
     setIsRecording(true);
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    const trackSampleOffset = await wavStreamPlayer.interrupt();
-    if (trackSampleOffset?.trackId) {
-      const { trackId, offset } = trackSampleOffset;
-      await client.cancelResponse(trackId, offset);
-    }
+    // const wavStreamPlayer = wavStreamPlayerRef.current;
+    // const trackSampleOffset = await wavStreamPlayer.interrupt();
+    // if (trackSampleOffset?.trackId) {
+    //   const { trackId, offset } = trackSampleOffset;
+    //   await client.cancelResponse(trackId, offset);
+    // }
     await wavRecorder.record((data) => client.appendInputAudio(data.mono));
   };
 
@@ -254,7 +291,8 @@ export function ConsolePage() {
   /**
    * Switch between Manual <> VAD mode for communication
    */
-  const changeTurnEndType = async (value: string) => {
+  const changeTurnEndType = async (notMyValue: string) => {
+    const value = 'none';
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     if (value === 'none' && wavRecorder.getStatus() === 'recording') {
@@ -263,9 +301,9 @@ export function ConsolePage() {
     client.updateSession({
       turn_detection: value === 'none' ? null : { type: 'server_vad' },
     });
-    if (value === 'server_vad' && client.isConnected()) {
-      await wavRecorder.record((data) => client.appendInputAudio(data.mono));
-    }
+    // if (value === 'server_vad' && client.isConnected()) {
+    //   await wavRecorder.record((data) => client.appendInputAudio(data.mono));
+    // }
     setCanPushToTalk(value === 'none');
   };
 
@@ -307,7 +345,7 @@ export function ConsolePage() {
     const clientCanvas = clientCanvasRef.current;
     let clientCtx: CanvasRenderingContext2D | null = null;
 
-    const wavStreamPlayer = wavStreamPlayerRef.current;
+    // const wavStreamPlayer = wavStreamPlayerRef.current;
     const serverCanvas = serverCanvasRef.current;
     let serverCtx: CanvasRenderingContext2D | null = null;
 
@@ -341,21 +379,21 @@ export function ConsolePage() {
             serverCanvas.height = serverCanvas.offsetHeight;
           }
           serverCtx = serverCtx || serverCanvas.getContext('2d');
-          if (serverCtx) {
-            serverCtx.clearRect(0, 0, serverCanvas.width, serverCanvas.height);
-            const result = wavStreamPlayer.analyser
-              ? wavStreamPlayer.getFrequencies('voice')
-              : { values: new Float32Array([0]) };
-            WavRenderer.drawBars(
-              serverCanvas,
-              serverCtx,
-              result.values,
-              '#009900',
-              10,
-              0,
-              8
-            );
-          }
+          // if (serverCtx) {
+          //   serverCtx.clearRect(0, 0, serverCanvas.width, serverCanvas.height);
+          //   const result = wavStreamPlayer.analyser
+          //     ? wavStreamPlayer.getFrequencies('voice')
+          //     : { values: new Float32Array([0]) };
+          //   WavRenderer.drawBars(
+          //     serverCanvas,
+          //     serverCtx,
+          //     result.values,
+          //     '#009900',
+          //     10,
+          //     0,
+          //     8
+          //   );
+          // }
         }
         window.requestAnimationFrame(render);
       }
@@ -373,7 +411,7 @@ export function ConsolePage() {
    */
   useEffect(() => {
     // Get refs
-    const wavStreamPlayer = wavStreamPlayerRef.current;
+    // const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
 
     // Set instructions
@@ -382,78 +420,79 @@ export function ConsolePage() {
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
 
     // Add tools
-    client.addTool(
-      {
-        name: 'set_memory',
-        description: 'Saves important data about the user into memory.',
-        parameters: {
-          type: 'object',
-          properties: {
-            key: {
-              type: 'string',
-              description:
-                'The key of the memory value. Always use lowercase and underscores, no other characters.',
-            },
-            value: {
-              type: 'string',
-              description: 'Value can be anything represented as a string',
-            },
-          },
-          required: ['key', 'value'],
-        },
-      },
-      async ({ key, value }: { [key: string]: any }) => {
-        setMemoryKv((memoryKv) => {
-          const newKv = { ...memoryKv };
-          newKv[key] = value;
-          return newKv;
-        });
-        return { ok: true };
-      }
-    );
-    client.addTool(
-      {
-        name: 'get_weather',
-        description:
-          'Retrieves the weather for a given lat, lng coordinate pair. Specify a label for the location.',
-        parameters: {
-          type: 'object',
-          properties: {
-            lat: {
-              type: 'number',
-              description: 'Latitude',
-            },
-            lng: {
-              type: 'number',
-              description: 'Longitude',
-            },
-            location: {
-              type: 'string',
-              description: 'Name of the location',
-            },
-          },
-          required: ['lat', 'lng', 'location'],
-        },
-      },
-      async ({ lat, lng, location }: { [key: string]: any }) => {
-        setMarker({ lat, lng, location });
-        setCoords({ lat, lng, location });
-        const result = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m`
-        );
-        const json = await result.json();
-        const temperature = {
-          value: json.current.temperature_2m as number,
-          units: json.current_units.temperature_2m as string,
-        };
-        const wind_speed = {
-          value: json.current.wind_speed_10m as number,
-          units: json.current_units.wind_speed_10m as string,
-        };
-        setMarker({ lat, lng, location, temperature, wind_speed });
-        return json;
-      }
-    );
+    // client.addTool(
+    //   {
+    //     name: 'set_memory',
+    //     description: 'Saves important data about the user into memory.',
+    //     parameters: {
+    //       type: 'object',
+    //       properties: {
+    //         key: {
+    //           type: 'string',
+    //           description:
+    //             'The key of the memory value. Always use lowercase and underscores, no other characters.',
+    //         },
+    //         value: {
+    //           type: 'string',
+    //           description: 'Value can be anything represented as a string',
+    //         },
+    //       },
+    //       required: ['key', 'value'],
+    //     },
+    //   },
+    //   async ({ key, value }: { [key: string]: any }) => {
+    //     setMemoryKv((memoryKv) => {
+    //       const newKv = { ...memoryKv };
+    //       newKv[key] = value;
+    //       return newKv;
+    //     });
+    //     return { ok: true };
+    //   }
+    // );
+
+    // client.addTool(
+    //   {
+    //     name: 'get_weather',
+    //     description:
+    //       'Retrieves the weather for a given lat, lng coordinate pair. Specify a label for the location.',
+    //     parameters: {
+    //       type: 'object',
+    //       properties: {
+    //         lat: {
+    //           type: 'number',
+    //           description: 'Latitude',
+    //         },
+    //         lng: {
+    //           type: 'number',
+    //           description: 'Longitude',
+    //         },
+    //         location: {
+    //           type: 'string',
+    //           description: 'Name of the location',
+    //         },
+    //       },
+    //       required: ['lat', 'lng', 'location'],
+    //     },
+    //   },
+    //   async ({ lat, lng, location }: { [key: string]: any }) => {
+    //     setMarker({ lat, lng, location });
+    //     setCoords({ lat, lng, location });
+    //     const result = await fetch(
+    //       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m`
+    //     );
+    //     const json = await result.json();
+    //     const temperature = {
+    //       value: json.current.temperature_2m as number,
+    //       units: json.current_units.temperature_2m as string,
+    //     };
+    //     const wind_speed = {
+    //       value: json.current.wind_speed_10m as number,
+    //       units: json.current_units.wind_speed_10m as string,
+    //     };
+    //     setMarker({ lat, lng, location, temperature, wind_speed });
+    //     return json;
+    //   }
+    // );
 
     // handle realtime events from client + server for event logging
     client.on('realtime.event', (realtimeEvent: RealtimeEvent) => {
@@ -470,16 +509,16 @@ export function ConsolePage() {
     });
     client.on('error', (event: any) => console.error(event));
     client.on('conversation.interrupted', async () => {
-      const trackSampleOffset = await wavStreamPlayer.interrupt();
-      if (trackSampleOffset?.trackId) {
-        const { trackId, offset } = trackSampleOffset;
-        await client.cancelResponse(trackId, offset);
-      }
+      // const trackSampleOffset = await wavStreamPlayer.interrupt();
+      // if (trackSampleOffset?.trackId) {
+      //   const { trackId, offset } = trackSampleOffset;
+      //   await client.cancelResponse(trackId, offset);
+      // }
     });
     client.on('conversation.updated', async ({ item, delta }: any) => {
       const items = client.conversation.getItems();
       if (delta?.audio) {
-        wavStreamPlayer.add16BitPCM(delta.audio, item.id);
+        // wavStreamPlayer.add16BitPCM(delta.audio, item.id);
       }
       if (item.status === 'completed' && item.formatted.audio?.length) {
         const wavFile = await WavRecorder.decode(
@@ -491,6 +530,20 @@ export function ConsolePage() {
       }
       setItems(items);
     });
+
+    // client.on('conversation.updated', async ({ item, delta }: any) => {
+    //   logDots(item, delta);
+    // });
+
+    client.addTool(
+      dotTool,
+      (args: {howManyDots: number, dotColor: string}) => {
+        const { howManyDots, dotColor } = args;
+
+        setDotCount(howManyDots);
+        setDotColor(dotColor);
+      },
+    );
 
     setItems(client.conversation.getItems());
 
@@ -504,228 +557,273 @@ export function ConsolePage() {
    * Render the application
    */
   return (
-    <div data-component="ConsolePage">
-      <div className="content-top">
-        <div className="content-title">
-          <img src="/openai-logomark.svg" />
-          <span>realtime console</span>
-        </div>
-        <div className="content-api-key">
-          {!LOCAL_RELAY_SERVER_URL && (
-            <Button
-              icon={Edit}
-              iconPosition="end"
-              buttonStyle="flush"
-              label={`api key: ${apiKey.slice(0, 3)}...`}
-              onClick={() => resetAPIKey()}
-            />
-          )}
-        </div>
-      </div>
-      <div className="content-main">
-        <div className="content-logs">
-          <div className="content-block events">
-            <div className="visualization">
-              <div className="visualization-entry client">
-                <canvas ref={clientCanvasRef} />
-              </div>
-              <div className="visualization-entry server">
-                <canvas ref={serverCanvasRef} />
-              </div>
-            </div>
-            <div className="content-block-title">events</div>
-            <div className="content-block-body" ref={eventsScrollRef}>
-              {!realtimeEvents.length && `awaiting connection...`}
-              {realtimeEvents.map((realtimeEvent, i) => {
-                const count = realtimeEvent.count;
-                const event = { ...realtimeEvent.event };
-                if (event.type === 'input_audio_buffer.append') {
-                  event.audio = `[trimmed: ${event.audio.length} bytes]`;
-                } else if (event.type === 'response.audio.delta') {
-                  event.delta = `[trimmed: ${event.delta.length} bytes]`;
-                }
-                return (
-                  <div className="event" key={event.event_id}>
-                    <div className="event-timestamp">
-                      {formatTime(realtimeEvent.time)}
-                    </div>
-                    <div className="event-details">
-                      <div
-                        className="event-summary"
-                        onClick={() => {
-                          // toggle event details
-                          const id = event.event_id;
-                          const expanded = { ...expandedEvents };
-                          if (expanded[id]) {
-                            delete expanded[id];
-                          } else {
-                            expanded[id] = true;
-                          }
-                          setExpandedEvents(expanded);
-                        }}
-                      >
-                        <div
-                          className={`event-source ${
-                            event.type === 'error'
-                              ? 'error'
-                              : realtimeEvent.source
-                          }`}
-                        >
-                          {realtimeEvent.source === 'client' ? (
-                            <ArrowUp />
-                          ) : (
-                            <ArrowDown />
-                          )}
-                          <span>
-                            {event.type === 'error'
-                              ? 'error!'
-                              : realtimeEvent.source}
-                          </span>
-                        </div>
-                        <div className="event-type">
-                          {event.type}
-                          {count && ` (${count})`}
-                        </div>
-                      </div>
-                      {!!expandedEvents[event.event_id] && (
-                        <div className="event-payload">
-                          {JSON.stringify(event, null, 2)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+    <>
+      <button onClick={toggleConsole} style={consoleButtonStyles.off}>
+        {displayConsole ? "dots" : "CONSOLE"}
+      </button>
+
+      {!displayConsole ? (
+        <div>
+          <div>
+            <button
+              onClick={isConnected ? disconnectConversation : connectConversation}
+              style={isConnected ? consoleButtonStyles.on : consoleButtonStyles.off}
+            >
+              {isConnected ? "disconnect" : "connect"}
+            </button>
           </div>
-          <div className="content-block conversation">
-            <div className="content-block-title">conversation</div>
-            <div className="content-block-body" data-conversation-content>
-              {!items.length && `awaiting connection...`}
-              {items.map((conversationItem, i) => {
-                return (
-                  <div className="conversation-item" key={conversationItem.id}>
-                    <div className={`speaker ${conversationItem.role || ''}`}>
-                      <div>
-                        {(
-                          conversationItem.role || conversationItem.type
-                        ).replaceAll('_', ' ')}
-                      </div>
-                      <div
-                        className="close"
-                        onClick={() =>
-                          deleteConversationItem(conversationItem.id)
-                        }
-                      >
-                        <X />
-                      </div>
-                    </div>
-                    <div className={`speaker-content`}>
-                      {/* tool response */}
-                      {conversationItem.type === 'function_call_output' && (
-                        <div>{conversationItem.formatted.output}</div>
-                      )}
-                      {/* tool call */}
-                      {!!conversationItem.formatted.tool && (
-                        <div>
-                          {conversationItem.formatted.tool.name}(
-                          {conversationItem.formatted.tool.arguments})
-                        </div>
-                      )}
-                      {!conversationItem.formatted.tool &&
-                        conversationItem.role === 'user' && (
-                          <div>
-                            {conversationItem.formatted.transcript ||
-                              (conversationItem.formatted.audio?.length
-                                ? '(awaiting transcript)'
-                                : conversationItem.formatted.text ||
-                                  '(item sent)')}
-                          </div>
-                        )}
-                      {!conversationItem.formatted.tool &&
-                        conversationItem.role === 'assistant' && (
-                          <div>
-                            {conversationItem.formatted.transcript ||
-                              conversationItem.formatted.text ||
-                              '(truncated)'}
-                          </div>
-                        )}
-                      {conversationItem.formatted.file && (
-                        <audio
-                          src={conversationItem.formatted.file.url}
-                          controls
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="content-actions">
-            <Toggle
-              defaultValue={false}
-              labels={['manual', 'vad']}
-              values={['none', 'server_vad']}
-              onChange={(_, value) => changeTurnEndType(value)}
-            />
-            <div className="spacer" />
+          <div>
             {isConnected && canPushToTalk && (
-              <Button
-                label={isRecording ? 'release to send' : 'push to talk'}
-                buttonStyle={isRecording ? 'alert' : 'regular'}
+              <button
                 disabled={!isConnected || !canPushToTalk}
                 onMouseDown={startRecording}
                 onMouseUp={stopRecording}
-              />
+                style={isRecording ? consoleButtonStyles.on : consoleButtonStyles.off}
+              >
+                {isRecording ? '(listening)' : 'push to talk'}
+              </button>
             )}
-            <div className="spacer" />
-            <Button
-              label={isConnected ? 'disconnect' : 'connect'}
-              iconPosition={isConnected ? 'end' : 'start'}
-              icon={isConnected ? X : Zap}
-              buttonStyle={isConnected ? 'regular' : 'action'}
-              onClick={
-                isConnected ? disconnectConversation : connectConversation
-              }
-            />
           </div>
+          {/* {
+            (isConnected && canPushToTalk) ? (<button
+              onClick={toggleConsole}
+              style={displayConsole ? consoleButtonStyles.on : consoleButtonStyles.off}
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+            > 
+              {isRecording ? "let go to stop" : 'push to talk'}
+            </button>) : (<button
+              style={consoleButtonStyles.off}
+            >
+              {isRecording ? "let go to stop" : 'push to talk'}
+            </button>)
+          } */}
+          <Dots dotCount={dotCount} dotColor={dotColor}/>
         </div>
-        <div className="content-right">
-          <div className="content-block map">
-            <div className="content-block-title">get_weather()</div>
-            <div className="content-block-title bottom">
-              {marker?.location || 'not yet retrieved'}
-              {!!marker?.temperature && (
-                <>
-                  <br />
-                  🌡️ {marker.temperature.value} {marker.temperature.units}
-                </>
-              )}
-              {!!marker?.wind_speed && (
-                <>
-                  {' '}
-                  🍃 {marker.wind_speed.value} {marker.wind_speed.units}
-                </>
-              )}
+      ) : (
+        <div data-component="ConsolePage">
+          <div className="content-top">
+            <div className="content-title">
+              <img src="/openai-logomark.svg" />
+              <span>realtime console</span>
             </div>
-            <div className="content-block-body full">
-              {coords && (
-                <Map
-                  center={[coords.lat, coords.lng]}
-                  location={coords.location}
+            <div className="content-api-key">
+              {!LOCAL_RELAY_SERVER_URL && (
+                <Button
+                  icon={Edit}
+                  iconPosition="end"
+                  buttonStyle="flush"
+                  label={`api key: ${apiKey.slice(0, 3)}...`}
+                  onClick={() => resetAPIKey()}
                 />
               )}
             </div>
           </div>
-          <div className="content-block kv">
-            <div className="content-block-title">set_memory()</div>
-            <div className="content-block-body content-kv">
-              {JSON.stringify(memoryKv, null, 2)}
+          <div className="content-main">
+            <div className="content-logs">
+              <div className="content-block events">
+                <div className="visualization">
+                  <div className="visualization-entry client">
+                    <canvas ref={clientCanvasRef} />
+                  </div>
+                  <div className="visualization-entry server">
+                    <canvas ref={serverCanvasRef} />
+                  </div>
+                </div>
+                <div className="content-block-title">events</div>
+                <div className="content-block-body" ref={eventsScrollRef}>
+                  {!realtimeEvents.length && `awaiting connection...`}
+                  {realtimeEvents.map((realtimeEvent, i) => {
+                    const count = realtimeEvent.count;
+                    const event = { ...realtimeEvent.event };
+                    if (event.type === 'input_audio_buffer.append') {
+                      event.audio = `[trimmed: ${event.audio.length} bytes]`;
+                    } else if (event.type === 'response.audio.delta') {
+                      event.delta = `[trimmed: ${event.delta.length} bytes]`;
+                    }
+                    return (
+                      <div className="event" key={event.event_id}>
+                        <div className="event-timestamp">
+                          {formatTime(realtimeEvent.time)}
+                        </div>
+                        <div className="event-details">
+                          <div
+                            className="event-summary"
+                            onClick={() => {
+                              // toggle event details
+                              const id = event.event_id;
+                              const expanded = { ...expandedEvents };
+                              if (expanded[id]) {
+                                delete expanded[id];
+                              } else {
+                                expanded[id] = true;
+                              }
+                              setExpandedEvents(expanded);
+                            }}
+                          >
+                            <div
+                              className={`event-source ${
+                                event.type === 'error'
+                                  ? 'error'
+                                  : realtimeEvent.source
+                              }`}
+                            >
+                              {realtimeEvent.source === 'client' ? (
+                                <ArrowUp />
+                              ) : (
+                                <ArrowDown />
+                              )}
+                              <span>
+                                {event.type === 'error'
+                                  ? 'error!'
+                                  : realtimeEvent.source}
+                              </span>
+                            </div>
+                            <div className="event-type">
+                              {event.type}
+                              {count && ` (${count})`}
+                            </div>
+                          </div>
+                          {!!expandedEvents[event.event_id] && (
+                            <div className="event-payload">
+                              {JSON.stringify(event, null, 2)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="content-block conversation">
+                <div className="content-block-title">conversation</div>
+                <div className="content-block-body" data-conversation-content>
+                  {!items.length && `awaiting connection...`}
+                  {items.map((conversationItem, i) => {
+                    return (
+                      <div className="conversation-item" key={conversationItem.id}>
+                        <div className={`speaker ${conversationItem.role || ''}`}>
+                          <div>
+                            {conversationItem.role}
+                            {conversationItem.type}
+                          </div>
+                          <div
+                            className="close"
+                            onClick={() =>
+                              deleteConversationItem(conversationItem.id)
+                            }
+                          >
+                            <X />
+                          </div>
+                        </div>
+                        <div className={`speaker-content`}>
+                          {/* tool response */}
+                          {conversationItem.type === 'function_call_output' && (
+                            <div>{conversationItem.formatted.output}</div>
+                          )}
+                          {/* tool call */}
+                          {!!conversationItem.formatted.tool && (
+                            <div>
+                              {conversationItem.formatted.tool.name}(
+                              {conversationItem.formatted.tool.arguments})
+                            </div>
+                          )}
+                          {!conversationItem.formatted.tool &&
+                            conversationItem.role === 'user' && (
+                              <div>
+                                {conversationItem.formatted.transcript ||
+                                  (conversationItem.formatted.audio?.length
+                                    ? '(awaiting transcript)'
+                                    : conversationItem.formatted.text ||
+                                      '(item sent)')}
+                              </div>
+                            )}
+                          {!conversationItem.formatted.tool &&
+                            conversationItem.role === 'assistant' && (
+                              <div>
+                                {conversationItem.formatted.transcript ||
+                                  conversationItem.formatted.text ||
+                                  '(truncated)'}
+                              </div>
+                            )}
+                          {conversationItem.formatted.file && (
+                            <audio
+                              src={conversationItem.formatted.file.url}
+                              controls
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="content-actions">
+                {/* <Toggle
+                  defaultValue={false}
+                  labels={['manual', 'vad']}
+                  values={['none', 'server_vad']}
+                  onChange={(_, value) => changeTurnEndType(value)}
+                /> */}
+                {/* <div className="spacer" /> */}
+                {isConnected && canPushToTalk && (
+                  <Button
+                    label={isRecording ? 'release to send' : 'push to talk'}
+                    buttonStyle={isRecording ? 'alert' : 'regular'}
+                    disabled={!isConnected || !canPushToTalk}
+                    onMouseDown={startRecording}
+                    onMouseUp={stopRecording}
+                  />
+                )}
+                <div className="spacer" />
+                <Button
+                  label={isConnected ? 'disconnect' : 'connect'}
+                  iconPosition={isConnected ? 'end' : 'start'}
+                  icon={isConnected ? X : Zap}
+                  buttonStyle={isConnected ? 'regular' : 'action'}
+                  onClick={
+                    isConnected ? disconnectConversation : connectConversation
+                  }
+                />
+              </div>
+            </div>
+            <div className="content-right">
+              {/* <div className="content-block map">
+                <div className="content-block-title">get_weather()</div>
+                <div className="content-block-title bottom">
+                  {marker?.location || 'not yet retrieved'}
+                  {!!marker?.temperature && (
+                    <>
+                      <br />
+                      🌡️ {marker.temperature.value} {marker.temperature.units}
+                    </>
+                  )}
+                  {!!marker?.wind_speed && (
+                    <>
+                      {' '}
+                      🍃 {marker.wind_speed.value} {marker.wind_speed.units}
+                    </>
+                  )}
+                </div>
+                <div className="content-block-body full">
+                  {coords && (
+                    <Map
+                      center={[coords.lat, coords.lng]}
+                      location={coords.location}
+                    />
+                  )}
+                </div>
+              </div> */}
+              {/* <div className="content-block kv">
+                <div className="content-block-title">set_memory()</div>
+                <div className="content-block-body content-kv">
+                  {JSON.stringify(memoryKv, null, 2)}
+                </div>
+              </div> */}
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
